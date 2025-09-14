@@ -5,6 +5,11 @@
 
 void GameSession::OnConnected() {
 	GSessionManager.Add(static_pointer_cast<GameSession>(shared_from_this()));
+	Protocol::S_NICKNAME_PROMPT promptPkt;
+	promptPkt.set_prompt("Enter your nickname : ");
+
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(promptPkt);
+	Send(sendBuffer);
 }
 
 void GameSession::OnDisconnected() {

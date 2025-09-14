@@ -22,7 +22,7 @@ void Session::Send(SendBufferRef sendBuffer) {
 	}
 
 	if (sendBuffer == nullptr) {
-		cout << "sendbuffer is nullptr!!!!!!!\n";
+		cout << "sendbuffer is nullptr\n";
 		ASSERT_CRASH(false);
 		return;
 	}
@@ -34,7 +34,7 @@ void Session::Send(SendBufferRef sendBuffer) {
 		WRITE_LOCK;
 
 		if (sendBuffer == nullptr) {
-			cout << "sendbuffer is nullptr!!!!!!!\n";
+			cout << "sendbuffer is nullptr\n";
 			ASSERT_CRASH(false);
 			return;
 		}

@@ -56,32 +56,61 @@ PROTOBUF_NAMESPACE_OPEN
 PROTOBUF_NAMESPACE_CLOSE
 namespace Protocol {
 
-enum PlayerType : int {
-  PLAYER_TYPE_NONE = 0,
-  PLAYER_TYPE_KNIGHT = 1,
-  PLAYER_TYPE_MAGE = 2,
-  PLAYER_TYPE_ARCHER = 3,
-  PlayerType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
-  PlayerType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+enum ErrorCode : int {
+  OK = 0,
+  INVALID_NICK = 1,
+  DUPLICATE_NICK = 2,
+  ROOM_NOT_FOUND = 3,
+  ROOM_FULL = 4,
+  ErrorCode_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  ErrorCode_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
-bool PlayerType_IsValid(int value);
-constexpr PlayerType PlayerType_MIN = PLAYER_TYPE_NONE;
-constexpr PlayerType PlayerType_MAX = PLAYER_TYPE_ARCHER;
-constexpr int PlayerType_ARRAYSIZE = PlayerType_MAX + 1;
+bool ErrorCode_IsValid(int value);
+constexpr ErrorCode ErrorCode_MIN = OK;
+constexpr ErrorCode ErrorCode_MAX = ROOM_FULL;
+constexpr int ErrorCode_ARRAYSIZE = ErrorCode_MAX + 1;
 
-const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* PlayerType_descriptor();
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ErrorCode_descriptor();
 template<typename T>
-inline const std::string& PlayerType_Name(T enum_t_value) {
-  static_assert(::std::is_same<T, PlayerType>::value ||
+inline const std::string& ErrorCode_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, ErrorCode>::value ||
     ::std::is_integral<T>::value,
-    "Incorrect type passed to function PlayerType_Name.");
+    "Incorrect type passed to function ErrorCode_Name.");
   return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
-    PlayerType_descriptor(), enum_t_value);
+    ErrorCode_descriptor(), enum_t_value);
 }
-inline bool PlayerType_Parse(
-    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, PlayerType* value) {
-  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<PlayerType>(
-    PlayerType_descriptor(), name, value);
+inline bool ErrorCode_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ErrorCode* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ErrorCode>(
+    ErrorCode_descriptor(), name, value);
+}
+enum RoomEventType : int {
+  ROOM_EVENT_UNKNOWN = 0,
+  ROOM_CREATED = 1,
+  ROOM_DELETED = 2,
+  PLAYER_JOINED = 3,
+  PLAYER_LEFT = 4,
+  RoomEventType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  RoomEventType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool RoomEventType_IsValid(int value);
+constexpr RoomEventType RoomEventType_MIN = ROOM_EVENT_UNKNOWN;
+constexpr RoomEventType RoomEventType_MAX = PLAYER_LEFT;
+constexpr int RoomEventType_ARRAYSIZE = RoomEventType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* RoomEventType_descriptor();
+template<typename T>
+inline const std::string& RoomEventType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, RoomEventType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function RoomEventType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    RoomEventType_descriptor(), enum_t_value);
+}
+inline bool RoomEventType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, RoomEventType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<RoomEventType>(
+    RoomEventType_descriptor(), name, value);
 }
 // ===================================================================
 
@@ -105,10 +134,15 @@ inline bool PlayerType_Parse(
 
 PROTOBUF_NAMESPACE_OPEN
 
-template <> struct is_proto_enum< ::Protocol::PlayerType> : ::std::true_type {};
+template <> struct is_proto_enum< ::Protocol::ErrorCode> : ::std::true_type {};
 template <>
-inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::PlayerType>() {
-  return ::Protocol::PlayerType_descriptor();
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::ErrorCode>() {
+  return ::Protocol::ErrorCode_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::RoomEventType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::RoomEventType>() {
+  return ::Protocol::RoomEventType_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE

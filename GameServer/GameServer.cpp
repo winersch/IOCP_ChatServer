@@ -28,17 +28,6 @@ int main() {
 			});
 	}
 
-	WCHAR sendData3[1000] = L"가"; // UTF16 = Unicode (한글/로마 2바이트)
-
-	while (true) {
-
-		//SendBufferRef sendBuffer = ClientPacketHandler::MakeSendBuffer(pkt);
-
-		//GSessionManager.Broadcast(sendBuffer);
-
-		this_thread::sleep_for(0.25s);
-	}
-
 	GThreadManager->Join();
 
 }

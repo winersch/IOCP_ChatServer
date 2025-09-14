@@ -3,89 +3,142 @@
 #include "Player.h"
 #include "Room.h"
 #include "GameSession.h"
+#include "GameSessionManager.h"
 
 PacketHandlerFunc GPacketHandler[UINT16_MAX];
 
-// 직접 컨텐츠 작업자
-
 bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len) {
 	PacketHeader* header = reinterpret_cast<PacketHeader*>(buffer);
-	// TOOD : Log
 	return false;
 }
+bool Handle_C_SET_NICKNAME(PacketSessionRef& session, Protocol::C_SET_NICKNAME& pkt) {
 
-bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt) {
-	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
+	string name = pkt.nickname();
 
-	// TODO : Validation Check
+	PlayerRef player = MakeShared<Player>();
+	player->playerId = 1;
+	player->name = name;
+	
+	Protocol::S_NICKNAME_RESULT nicknameResultPkt;
+	SendBufferRef sendBuffer;
 
-	Protocol::S_LOGIN loginPkt;
-	loginPkt.set_success(true);
-
-	// DB에서 플레이 정보를 긁어온다
-	// GameSession에 플레이 정보를 저장 (메모리)
-
-	// ID 발급 (DB 아이디가 아니고, 인게임 아이디)
-	static Atomic<uint64> idGenerator = 1;
-	{
-		auto player = loginPkt.add_players();
-		player->set_name(u8"DB1");
-		player->set_playertype(Protocol::PLAYER_TYPE_KNIGHT);
-
-		PlayerRef playerRef = MakeShared<Player>();
-		playerRef->playerId = idGenerator++;
-		playerRef->name = player->name();
-		playerRef->type = player->playertype();
-		playerRef->ownerSession = gameSession;
-
-		gameSession->_players.push_back(playerRef);
+	if (GSessionManager.AddPlayer(player) == false) {
+		nicknameResultPkt.set_error(Protocol::ErrorCode::DUPLICATE_NICK);
+		sendBuffer = ClientPacketHandler::MakeSendBuffer(nicknameResultPkt);
+		session->Send(sendBuffer);
+		Protocol::S_NICKNAME_PROMPT nicknamePrompt;
+		nicknamePrompt.set_prompt("Enter your nickname : ");
+		sendBuffer = ClientPacketHandler::MakeSendBuffer(nicknamePrompt);
+		session->Send(sendBuffer);
 	}
-	{
-		auto player = loginPkt.add_players();
-		player->set_name(u8"DB2");
-		player->set_playertype(Protocol::PLAYER_TYPE_MAGE);
-
-		PlayerRef playerRef = MakeShared<Player>();
-		playerRef->playerId = idGenerator++;
-		playerRef->name = player->name();
-		playerRef->type = player->playertype();
-		playerRef->ownerSession = gameSession;
-
-		gameSession->_players.push_back(playerRef);
+	else {
+		player->ownerSession = static_pointer_cast<GameSession>(session);
+		auto* playerPkt = nicknameResultPkt.mutable_self();
+		playerPkt->set_id(GSessionManager.GetPlayer(name)->playerId);
+		playerPkt->set_name(name);
+		nicknameResultPkt.set_error(Protocol::ErrorCode::OK);
+		sendBuffer = ClientPacketHandler::MakeSendBuffer(nicknameResultPkt);
+		session->Send(sendBuffer);
 	}
 
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(loginPkt);
+	return true;
+}
+bool Handle_C_REQUEST_ROOM_LIST(PacketSessionRef& session, Protocol::C_REQUEST_ROOM_LIST& pkt) {
+	Protocol::S_ROOM_LIST createRoomPkt;
+	SendBufferRef sendBuffer;
+	auto rooms = GSessionManager.GetAllRooms();
+	for (const auto& r : rooms) {
+		auto* summary = createRoomPkt.add_rooms();
+		summary->set_roomid(r->GetId());
+		summary->set_name(r->GetName());
+		summary->set_maxplayers(r->GetMaxPlayerCount());
+		summary->set_playercount(r->GetPlayerCount());
+	}
+
+	sendBuffer = ClientPacketHandler::MakeSendBuffer(createRoomPkt);
 	session->Send(sendBuffer);
+	return true;
+}
+bool Handle_C_CREATE_ROOM(PacketSessionRef& session, Protocol::C_CREATE_ROOM& pkt) {
+	RoomRef roomRef = MakeShared<Room>();
+	roomRef->SetName(pkt.name());
+
+	Protocol::S_CREATE_ROOM createRoomPkt;
+	SendBufferRef sendBuffer;
+	if (GSessionManager.AddRoom(roomRef) == false) {
+		createRoomPkt.set_error(Protocol::ErrorCode::DUPLICATE_NICK);
+	}
+	else {
+		createRoomPkt.set_error(Protocol::ErrorCode::OK);
+		auto rooms = GSessionManager.GetAllRooms();
+		for (const auto& r : rooms) {
+			auto* summary = createRoomPkt.add_rooms();
+			summary->set_roomid(r->GetId());
+			summary->set_name(r->GetName());
+			summary->set_maxplayers(r->GetMaxPlayerCount());
+			summary->set_playercount(r->GetPlayerCount());
+		}
+	}
+	sendBuffer = ClientPacketHandler::MakeSendBuffer(createRoomPkt);
+	session->Send(sendBuffer);
+	return true;
+}
+bool Handle_C_JOIN_ROOM(PacketSessionRef& session, Protocol::C_JOIN_ROOM& pkt) {
+
+	auto room = GSessionManager.GetRoom(pkt.roomid());
+	auto player = GSessionManager.GetPlayer(pkt.self().id());
+	
+	Protocol::S_ENTER_ROOM enterRoomPkt;
+	SendBufferRef sendBuffer;
+
+	if (room == nullptr) {
+		enterRoomPkt.set_error(Protocol::ErrorCode::ROOM_NOT_FOUND);
+		sendBuffer = ClientPacketHandler::MakeSendBuffer(enterRoomPkt);
+	} 
+	else if (room->Enter(player) == false) {
+		enterRoomPkt.set_error(Protocol::ErrorCode::ROOM_FULL);
+		sendBuffer = ClientPacketHandler::MakeSendBuffer(enterRoomPkt);
+	}
+	else {
+		enterRoomPkt.set_error(Protocol::ErrorCode::OK);
+		sendBuffer = ClientPacketHandler::MakeSendBuffer(enterRoomPkt);
+	}
+
+	ClientPacketHandler::MakeSendBuffer(enterRoomPkt);
+	session->Send(sendBuffer);
+	player->roomId = room->GetId();
+
 
 	return true;
 }
+bool Handle_C_CHAT_ROOM(PacketSessionRef& session, Protocol::C_CHAT_ROOM& pkt) {
 
-bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt) {
-	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
+	auto room = GSessionManager.GetRoomFromPlayerId(pkt.self().id());
+	Protocol::S_CHAT_ROOM chatRoomPkt;
+	Protocol::ChatMessage* chatMessage= new Protocol::ChatMessage();
+	chatMessage->set_roomid(room->GetId());
+	chatMessage->set_playerid(pkt.self().id());
+	chatMessage->set_nickname(pkt.self().name());
+	chatMessage->set_msg(pkt.msg());
+	chatRoomPkt.set_allocated_chat(chatMessage);
 
-	uint64 index = pkt.playerindex();
-	// TODO : Validation
+	SendBufferRef sendbuffer = ClientPacketHandler::MakeSendBuffer(chatRoomPkt);
 
-	PlayerRef player = gameSession->_players[index]; // READ_ONLY?
-	GRoom.Enter(player); // WRITE_LOCK
-
-	Protocol::S_ENTER_GAME enterGamePkt;
-	enterGamePkt.set_success(true);
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
-	player->ownerSession->Send(sendBuffer);
-
+	room->Broadcast(sendbuffer);
 	return true;
 }
 
-bool Handle_C_CHAT(PacketSessionRef& session, Protocol::C_CHAT& pkt) {
-	std::cout << pkt.msg() << "\n";
+bool Handle_C_LEAVE_ROOM(PacketSessionRef& session, Protocol::C_LEAVE_ROOM& pkt) {
 
-	Protocol::S_CHAT chatPkt;
-	chatPkt.set_msg(pkt.msg());
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(chatPkt);
+	auto name = pkt.self().name();
+	auto id = pkt.self().id();
 
-	GRoom.Broadcast(sendBuffer); // WRITE_LOCK
+	auto room = GSessionManager.GetRoomFromPlayerId(id);
+	if (room == nullptr) {
+		return false;
+	}
+	room->Leave(GSessionManager.GetPlayer(id));
+	GSessionManager.GetPlayer(id)->roomId = -1; 
 
 	return true;
 }
-
